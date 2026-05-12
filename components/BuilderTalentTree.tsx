@@ -62,6 +62,7 @@ const SPEC_OFFSET = 720;
 const SPEC_STACK_OFFSET = 560;
 const STACK_BREAKPOINT = 1500;
 const CANVAS_SAFE_PADDING = 76;
+const TREE_POINT_LIMIT = 25;
 
 function iconClassName(iconPath?: string) {
   const raw = iconPath?.split("\\").at(-1)?.split("/").at(-1) ?? "";
@@ -352,6 +353,141 @@ function getSpentTotals(nodes: TreeNode[], points: Record<string, number>) {
     },
     { ability: 0, talent: 0 },
   );
+}
+
+function getSpentInSection(
+  spent: { ability: number; talent: number },
+  section: "class" | "spec",
+) {
+  return section === "class" ? spent.ability : spent.talent;
+}
+
+function getPointCost(
+  entry: FlatTalentEntry,
+  section: "class" | "spec",
+) {
+  return section === "class" ? entry.aeCost : entry.teCost;
+}
+
+function canApplyPointChange(
+  nodes: TreeNode[],
+  currentPoints: Record<string, number>,
+  nextPoints: Record<string, number>,
+  section: "class" | "spec",
+) {
+  const currentSpent = getSpentTotals(nodes, currentPoints);
+  const nextSpent = getSpentTotals(nodes, nextPoints);
+  const currentSectionSpent = getSpentInSection(currentSpent, section);
+  const nextSectionSpent = getSpentInSection(nextSpent, section);
+
+  return (
+    nextSectionSpent <= TREE_POINT_LIMIT ||
+    nextSectionSpent <= currentSectionSpent
+  );
+}
+
+function canAddRankToNode(
+  node: TreeNode,
+  points: Record<string, number>,
+  spent: { ability: number; talent: number },
+) {
+  if (
+    isPassiveNode(node) ||
+    getNodeRank(node, points) >= getNodeMaxPoints(node)
+  ) {
+    return false;
+  }
+
+  const pointCost = Math.min(
+    ...(node.choices ?? [node]).map((choice) =>
+      Math.max(1, getPointCost(choice, node.section)),
+    ),
+  );
+
+  return getSpentInSection(spent, node.section) + pointCost <= TREE_POINT_LIMIT;
+}
+
+function getPointLimitText(
+  node: TreeNode,
+  points: Record<string, number>,
+  spent: { ability: number; talent: number },
+) {
+  if (canAddRankToNode(node, points, spent) || isPassiveNode(node)) {
+    return [];
+  }
+
+  if (getNodeRank(node, points) >= getNodeMaxPoints(node)) {
+    return [];
+  }
+
+  const treeName = node.section === "class" ? "Class Tree" : "Spec Tree";
+
+  return [`${treeName} is limited to ${TREE_POINT_LIMIT} points`];
+}
+
+function arePointStatesEqual(
+  first: Record<string, number>,
+  second: Record<string, number>,
+) {
+  const firstEntries = Object.entries(first);
+  const secondEntries = Object.entries(second);
+
+  if (firstEntries.length !== secondEntries.length) {
+    return false;
+  }
+
+  return firstEntries.every(([key, value]) => second[key] === value);
+}
+
+function limitPointStateToTreeCaps(
+  nodes: TreeNode[],
+  points: Record<string, number>,
+) {
+  const selectableByKey = new Map<
+    string,
+    { maxPoints: number; pointCost: number; section: "class" | "spec" }
+  >();
+
+  for (const node of nodes) {
+    if (isPassiveNode(node)) {
+      continue;
+    }
+
+    for (const entry of node.choices ?? [node]) {
+      selectableByKey.set(`${node.section}:${entry.id}`, {
+        maxPoints: entry.maxPoints,
+        pointCost: Math.max(1, getPointCost(entry, node.section)),
+        section: node.section,
+      });
+    }
+  }
+
+  const spentBySection = { class: 0, spec: 0 };
+  const limitedPoints: Record<string, number> = {};
+
+  for (const [key, rawRank] of Object.entries(points)) {
+    const selectable = selectableByKey.get(key);
+
+    if (!selectable) {
+      continue;
+    }
+
+    const rank = Math.min(selectable.maxPoints, Math.max(0, rawRank));
+    const remaining =
+      TREE_POINT_LIMIT - spentBySection[selectable.section];
+    const allowedRank = Math.min(
+      rank,
+      Math.floor(remaining / selectable.pointCost),
+    );
+
+    if (allowedRank > 0) {
+      limitedPoints[key] = allowedRank;
+      spentBySection[selectable.section] +=
+        allowedRank * selectable.pointCost;
+    }
+  }
+
+  return limitedPoints;
 }
 
 function getRequirementText(
@@ -918,6 +1054,20 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
   );
   const spent = getSpentTotals(nodes, points);
 
+  useEffect(() => {
+    if (nodes.length === 0) {
+      return;
+    }
+
+    setPoints((current) => {
+      const limitedPoints = limitPointStateToTreeCaps(nodes, current);
+
+      return arePointStatesEqual(current, limitedPoints)
+        ? current
+        : limitedPoints;
+    });
+  }, [nodes]);
+
   function chooseClass(builderClass: BuilderClass) {
     const nextSpecs = sortedSpecs(builderClass);
 
@@ -965,7 +1115,10 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
         }
       }
 
-      return nextPoints;
+      return canUsePointState(nextPoints) &&
+        canApplyPointChange(nodes, current, nextPoints, node.section)
+        ? nextPoints
+        : current;
     });
   }
 
@@ -1058,7 +1211,10 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
       nextPoints[choiceKey] =
         existing > 0 && existing < choice.maxPoints ? existing + 1 : 1;
 
-      return nextPoints;
+      return canUsePointState(nextPoints) &&
+        canApplyPointChange(nodes, current, nextPoints, node.section)
+        ? nextPoints
+        : current;
     });
     setHoveredChoiceId(choice.id);
     setHoveredNodeKey(node.nodeKey);
@@ -1204,9 +1360,13 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
                 </div>
                 <div className={`tree-header ${treeLayout}`}>
                   <strong>Class Tree</strong>
-                  <span>{spent.ability} Ability Essence</span>
+                  <span>
+                    {spent.ability}/{TREE_POINT_LIMIT} Ability Essence
+                  </span>
                   <strong>{selectedSpec?.tabName}</strong>
-                  <span>{spent.talent} Talent Essence</span>
+                  <span>
+                    {spent.talent}/{TREE_POINT_LIMIT} Talent Essence
+                  </span>
                 </div>
 
                 {treeLayout === "stacked" ? (
@@ -1215,7 +1375,9 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
                     style={{ top: GRID_TOP + SPEC_STACK_OFFSET - 44 }}
                   >
                     <strong>{selectedSpec?.tabName}</strong>
-                    <span>{spent.talent} Talent Essence</span>
+                    <span>
+                      {spent.talent}/{TREE_POINT_LIMIT} Talent Essence
+                    </span>
                   </div>
                 ) : null}
 
@@ -1304,13 +1466,16 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
                       const current = getVisualRank(node, points, spent);
                       const maxPoints = getNodeMaxPoints(node);
                       const isSpent = current > 0;
-                      const isAvailable = canRankNode(
+                      const meetsRequirements = canRankNode(
                         node,
                         points,
                         spent,
                         data.realm.maxLevel,
                       );
-                      const canUseNode = isAvailable || isSpent;
+                      const canUseNode =
+                        isSpent ||
+                        (meetsRequirements &&
+                          canAddRankToNode(node, points, spent));
                       const isMatch = (node.choices ?? [node]).some((choice) =>
                         matchesQuery(choice, queryText),
                       );
@@ -1326,7 +1491,7 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
                               : node.nodeType.includes("Square")
                                 ? "square"
                                 : "circle",
-                            isAvailable ? "available" : "locked",
+                            canUseNode ? "available" : "locked",
                             isSpent ? "spent" : "",
                             isMatch ? "matched" : "",
                           ]
@@ -1401,7 +1566,7 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
                         points,
                         spent,
                         data.realm.maxLevel,
-                      )}
+                      ).concat(getPointLimitText(hoveredNode, points, spent))}
                     />
                   ) : null}
                 </div>
