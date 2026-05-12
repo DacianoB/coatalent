@@ -347,10 +347,14 @@ function getSpentTotals(nodes: TreeNode[], points: Record<string, number>) {
       }
 
       const rank = points[`${node.section}:${selectedChoice.id}`] ?? 0;
+      const pointCost = Math.max(1, getPointCost(selectedChoice, node.section));
 
       return {
-        ability: totals.ability + selectedChoice.aeCost * rank,
-        talent: totals.talent + selectedChoice.teCost * rank,
+        ability:
+          totals.ability +
+          (node.section === "class" ? pointCost * rank : 0),
+        talent:
+          totals.talent + (node.section === "spec" ? pointCost * rank : 0),
       };
     },
     { ability: 0, talent: 0 },
