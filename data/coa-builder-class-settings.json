@@ -1,0 +1,237 @@
+{
+  "sourceJsUrl": "https://ascension.gg/_next/static/chunks/143sw1.rexkp~.js",
+  "scrapedAt": "2026-05-12T20:28:47.164Z",
+  "settings": [
+    {
+      "classId": 12,
+      "className": "Barbarian",
+      "classFile": "barbarian",
+      "iconClass": "class-barbarian",
+      "color": "rgb(138, 51, 3)",
+      "rgb": "138, 51, 3",
+      "colorHex": "#8a3303",
+      "textColor": "#ffffff",
+      "treeTexture": "/textures/coa/trees/barbarian.webp"
+    },
+    {
+      "classId": 13,
+      "className": "Witch Doctor",
+      "classFile": "witchdoctor",
+      "iconClass": "class-witchdoctor",
+      "color": "rgb(245, 0, 255)",
+      "rgb": "245, 0, 255",
+      "colorHex": "#f500ff",
+      "textColor": "#ffffff",
+      "treeTexture": "/textures/coa/trees/witchdoctor.webp"
+    },
+    {
+      "classId": 14,
+      "className": "Felsworn",
+      "classFile": "demonhunter",
+      "iconClass": "class-demonhunter",
+      "color": "rgb(117, 250, 0)",
+      "rgb": "117, 250, 0",
+      "colorHex": "#75fa00",
+      "textColor": "#111111",
+      "treeTexture": "/textures/coa/trees/demonhunter.webp"
+    },
+    {
+      "classId": 15,
+      "className": "Witch Hunter",
+      "classFile": "witchhunter",
+      "iconClass": "class-witchhunter",
+      "color": "rgb(84, 51, 207)",
+      "rgb": "84, 51, 207",
+      "colorHex": "#5433cf",
+      "textColor": "#ffffff",
+      "treeTexture": "/textures/coa/trees/witchhunter.webp"
+    },
+    {
+      "classId": 16,
+      "className": "Stormbringer",
+      "classFile": "stormbringer",
+      "iconClass": "class-stormbringer",
+      "color": "rgb(0, 125, 237)",
+      "rgb": "0, 125, 237",
+      "colorHex": "#007ded",
+      "textColor": "#ffffff",
+      "treeTexture": "/textures/coa/trees/stormbringer.webp"
+    },
+    {
+      "classId": 17,
+      "className": "Knight of Xoroth",
+      "classFile": "fleshwarden",
+      "iconClass": "class-fleshwarden",
+      "color": "rgb(252, 0, 5)",
+      "rgb": "252, 0, 5",
+      "colorHex": "#fc0005",
+      "textColor": "#ffffff",
+      "treeTexture": "/textures/coa/trees/fleshwarden.webp"
+    },
+    {
+      "classId": 18,
+      "className": "Guardian",
+      "classFile": "guardian",
+      "iconClass": "class-guardian",
+      "color": "rgb(156, 148, 130)",
+      "rgb": "156, 148, 130",
+      "colorHex": "#9c9482",
+      "textColor": "#111111",
+      "treeTexture": "/textures/coa/trees/guardian.webp"
+    },
+    {
+      "classId": 19,
+      "className": "Templar",
+      "classFile": "monk",
+      "iconClass": "class-monk",
+      "color": "rgb(255, 250, 179)",
+      "rgb": "255, 250, 179",
+      "colorHex": "#fffab3",
+      "textColor": "#111111",
+      "treeTexture": "/textures/coa/trees/monk.webp"
+    },
+    {
+      "classId": 20,
+      "className": "Bloodmage",
+      "classFile": "sonofarugal",
+      "iconClass": "class-sonofarugal",
+      "color": "rgb(163, 0, 0)",
+      "rgb": "163, 0, 0",
+      "colorHex": "#a30000",
+      "textColor": "#ffffff",
+      "treeTexture": "/textures/coa/trees/sonofarugal.webp"
+    },
+    {
+      "classId": 21,
+      "className": "Ranger",
+      "classFile": "ranger",
+      "iconClass": "class-ranger",
+      "color": "rgb(191, 240, 107)",
+      "rgb": "191, 240, 107",
+      "colorHex": "#bff06b",
+      "textColor": "#111111",
+      "treeTexture": "/textures/coa/trees/ranger.webp"
+    },
+    {
+      "classId": 22,
+      "className": "Chronomancer",
+      "classFile": "chronomancer",
+      "iconClass": "class-chronomancer",
+      "color": "rgb(255, 237, 74)",
+      "rgb": "255, 237, 74",
+      "colorHex": "#ffed4a",
+      "textColor": "#111111",
+      "treeTexture": "/textures/coa/trees/chronomancer.webp"
+    },
+    {
+      "classId": 23,
+      "className": "Necromancer",
+      "classFile": "necromancer",
+      "iconClass": "class-necromancer",
+      "color": "rgb(69, 219, 156)",
+      "rgb": "69, 219, 156",
+      "colorHex": "#45db9c",
+      "textColor": "#111111",
+      "treeTexture": "/textures/coa/trees/necromancer.webp"
+    },
+    {
+      "classId": 24,
+      "className": "Pyromancer",
+      "classFile": "pyromancer",
+      "iconClass": "class-pyromancer",
+      "color": "rgb(255, 97, 18)",
+      "rgb": "255, 97, 18",
+      "colorHex": "#ff6112",
+      "textColor": "#ffffff",
+      "treeTexture": "/textures/coa/trees/pyromancer.webp"
+    },
+    {
+      "classId": 25,
+      "className": "Cultist",
+      "classFile": "cultist",
+      "iconClass": "class-cultist",
+      "color": "rgb(156, 69, 242)",
+      "rgb": "156, 69, 242",
+      "colorHex": "#9c45f2",
+      "textColor": "#ffffff",
+      "treeTexture": "/textures/coa/trees/cultist.webp"
+    },
+    {
+      "classId": 26,
+      "className": "Starcaller",
+      "classFile": "starcaller",
+      "iconClass": "class-starcaller",
+      "color": "rgb(143, 255, 255)",
+      "rgb": "143, 255, 255",
+      "colorHex": "#8fffff",
+      "textColor": "#111111",
+      "treeTexture": "/textures/coa/trees/starcaller.webp"
+    },
+    {
+      "classId": 27,
+      "className": "Sun Cleric",
+      "classFile": "suncleric",
+      "iconClass": "class-suncleric",
+      "color": "rgb(255, 179, 64)",
+      "rgb": "255, 179, 64",
+      "colorHex": "#ffb340",
+      "textColor": "#111111",
+      "treeTexture": "/textures/coa/trees/suncleric.webp"
+    },
+    {
+      "classId": 28,
+      "className": "Tinker",
+      "classFile": "tinker",
+      "iconClass": "class-tinker",
+      "color": "rgb(217, 217, 217)",
+      "rgb": "217, 217, 217",
+      "colorHex": "#d9d9d9",
+      "textColor": "#111111",
+      "treeTexture": "/textures/coa/trees/tinker.webp"
+    },
+    {
+      "classId": 29,
+      "className": "Venomancer",
+      "classFile": "prophet",
+      "iconClass": "class-prophet",
+      "color": "rgb(107, 166, 0)",
+      "rgb": "107, 166, 0",
+      "colorHex": "#6ba600",
+      "textColor": "#ffffff",
+      "treeTexture": "/textures/coa/trees/prophet.webp"
+    },
+    {
+      "classId": 30,
+      "className": "Reaper",
+      "classFile": "reaper",
+      "iconClass": "class-reaper",
+      "color": "rgb(10, 135, 107)",
+      "rgb": "10, 135, 107",
+      "colorHex": "#0a876b",
+      "textColor": "#ffffff",
+      "treeTexture": "/textures/coa/trees/reaper.webp"
+    },
+    {
+      "classId": 31,
+      "className": "Primalist",
+      "classFile": "wildwalker",
+      "iconClass": "class-wildwalker",
+      "color": "rgb(227, 140, 89)",
+      "rgb": "227, 140, 89",
+      "colorHex": "#e38c59",
+      "textColor": "#111111",
+      "treeTexture": "/textures/coa/trees/wildwalker.webp"
+    },
+    {
+      "classId": 32,
+      "className": "Runemaster",
+      "classFile": "spiritmage",
+      "iconClass": "class-spiritmage",
+      "color": "rgb(64, 199, 235)",
+      "rgb": "64, 199, 235",
+      "colorHex": "#40c7eb",
+      "textColor": "#111111",
+      "treeTexture": "/textures/coa/trees/spiritmage.webp"
+    }
+  ]
+}
