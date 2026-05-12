@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, MouseEvent } from "react";
-import { useSearchParams } from "next/navigation";
+import type { CSSProperties } from "react";
 
 import type {
   BuilderClass,
@@ -851,6 +850,42 @@ function readInitialParamState(
   };
 }
 
+function readBrowserUrlState(
+  data: BuilderViewModel,
+  fallbackClass: BuilderClass,
+  fallbackSpec: BuilderTab | undefined,
+) {
+  const params = new URLSearchParams(window.location.search);
+
+  return readInitialParamState(data, fallbackClass, fallbackSpec, {
+    class: params.get("class") ?? undefined,
+    spec: params.get("spec") ?? undefined,
+    talents: params.get("talents") ?? undefined,
+    freePick: params.get("freePick") ?? undefined,
+  });
+}
+
+function subscribeToUrlChanges(callback: () => void) {
+  const originalPushState = window.history.pushState;
+
+  window.history.pushState = function pushState(...args) {
+    const result = originalPushState.apply(this, args);
+
+    window.dispatchEvent(new Event("builder:urlchange"));
+
+    return result;
+  };
+
+  window.addEventListener("builder:urlchange", callback);
+  window.addEventListener("popstate", callback);
+
+  return () => {
+    window.history.pushState = originalPushState;
+    window.removeEventListener("builder:urlchange", callback);
+    window.removeEventListener("popstate", callback);
+  };
+}
+
 function getTreeLayout(viewportWidth: number) {
   if (viewportWidth > 0 && viewportWidth < STACK_BREAKPOINT) {
     return "stacked";
@@ -913,57 +948,12 @@ function getCanvasSize(
   };
 }
 
-function readInitialUrlState(
-  data: BuilderViewModel,
-  fallbackClass: BuilderClass,
-  fallbackSpec: BuilderTab | undefined,
-): InitialUrlState {
-  if (typeof window === "undefined") {
-    return {
-      classId: null,
-      specId: null,
-      points: {},
-      freePick: false,
-    };
-  }
-
-  const params = new URLSearchParams(window.location.search);
-  const classParam = params.get("class");
-  const freePick = params.get("freePick") === "1";
-  const classFromUrl = data.talents.classes.find((builderClass) =>
-    matchesQueryValue(builderClass.className, classParam),
-  );
-
-  if (!classFromUrl) {
-    return {
-      classId: null,
-      specId: null,
-      points: {},
-      freePick,
-    };
-  }
-
-  const specs = sortedSpecs(classFromUrl);
-  const specFromUrl =
-    specs.find((spec) => matchesQueryValue(spec.tabName, params.get("spec"))) ??
-    (classFromUrl.classId === fallbackClass.classId ? fallbackSpec : specs[0]);
-
-  return {
-    classId: classFromUrl.classId,
-    specId: specFromUrl?.tabId ?? null,
-    points: decodeTalentCode(params.get("talents")),
-    freePick,
-  };
-}
-
 export default function BuilderTalentTree({ data, initialParams }: Props) {
   const defaultClass =
     data.talents.classes.find((item) => item.className === "Witch Doctor") ??
     data.talents.classes[0];
   const defaultSpec =
     sortedSpecs(defaultClass)[1] ?? sortedSpecs(defaultClass)[0];
-  const searchParams = useSearchParams();
-  const searchParamKey = searchParams.toString();
   const initialState = readInitialParamState(
     data,
     defaultClass,
@@ -1010,16 +1000,22 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
   const treeContentSize = getTreeContentSize(treeLayout);
 
   useEffect(() => {
-    const initialState = readInitialUrlState(data, defaultClass, defaultSpec);
+    function applyUrlState() {
+      const nextState = readBrowserUrlState(data, defaultClass, defaultSpec);
 
-    setSelectedClassId(initialState.classId);
-    setSelectedSpecId(initialState.specId);
-    setPoints(initialState.points);
-    setIsFreePickEnabled(initialState.freePick);
-    setOpenChoiceNodeKey(null);
-    setHoveredChoiceId(null);
-    setIsUrlStateReady(true);
-  }, [data, defaultClass, defaultSpec, searchParamKey]);
+      setSelectedClassId(nextState.classId);
+      setSelectedSpecId(nextState.specId);
+      setPoints(nextState.points);
+      setIsFreePickEnabled(nextState.freePick);
+      setOpenChoiceNodeKey(null);
+      setHoveredChoiceId(null);
+      setIsUrlStateReady(true);
+    }
+
+    applyUrlState();
+
+    return subscribeToUrlChanges(applyUrlState);
+  }, [data, defaultClass, defaultSpec]);
 
   useEffect(() => {
     function handleResize() {
@@ -1163,23 +1159,6 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
     setPoints({});
     setOpenChoiceNodeKey(null);
     setIsClassPickerOpen(false);
-  }
-
-  function chooseStartClass(
-    event: MouseEvent<HTMLAnchorElement>,
-    builderClass: BuilderClass,
-    spec: BuilderTab | undefined,
-  ) {
-    event.preventDefault();
-    setSelectedClassId(builderClass.classId);
-    setSelectedSpecId(spec?.tabId ?? null);
-    setPoints({});
-    setOpenChoiceNodeKey(null);
-    setHoveredChoiceId(null);
-    setIsUrlStateReady(true);
-
-    const nextUrl = builderUrl(builderClass, spec);
-    window.history.pushState(null, "", nextUrl);
   }
 
   function chooseSpec(tab: BuilderTab) {
@@ -1448,9 +1427,6 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
                     <a
                       href={builderUrl(builderClass, firstSpec)}
                       key={builderClass.classId}
-                      onClick={(event) =>
-                        chooseStartClass(event, builderClass, firstSpec)
-                      }
                       style={classThemeStyle(
                         getClassSetting(data, builderClass),
                       )}
