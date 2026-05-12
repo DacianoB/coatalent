@@ -1,0 +1,9 @@
+{
+  "name": "coa-builder-static-html",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npx --yes serve . --listen 3000"
+  },
+  "devDependencies": {}
+}
