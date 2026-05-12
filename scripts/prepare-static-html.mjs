@@ -11,6 +11,14 @@ const PRESERVED_HTML_ENTRIES = new Set([
   "package.json",
 ]);
 
+function assertBuildLifecycle() {
+  if (process.env.npm_lifecycle_event !== "build") {
+    throw new Error(
+      "Refusing to update html/. Run `npm run build` to regenerate the static HTML export.",
+    );
+  }
+}
+
 async function fileExists(filePath) {
   try {
     await fs.access(filePath);
@@ -74,6 +82,8 @@ async function makeCssPublicUrlsFileFriendly() {
     }
   }
 }
+
+assertBuildLifecycle();
 
 if (!(await fileExists(OUT_DIR))) {
   throw new Error("Missing static export folder: out");

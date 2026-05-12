@@ -3,6 +3,7 @@ node_modules
 out
 dist
 output
+html/
 .env*
 tsconfig.tsbuildinfo
 npm-debug.log*
