@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, MouseEvent } from "react";
+import { useSearchParams } from "next/navigation";
 
 import type {
   BuilderClass,
@@ -351,8 +352,7 @@ function getSpentTotals(nodes: TreeNode[], points: Record<string, number>) {
 
       return {
         ability:
-          totals.ability +
-          (node.section === "class" ? pointCost * rank : 0),
+          totals.ability + (node.section === "class" ? pointCost * rank : 0),
         talent:
           totals.talent + (node.section === "spec" ? pointCost * rank : 0),
       };
@@ -368,10 +368,7 @@ function getSpentInSection(
   return section === "class" ? spent.ability : spent.talent;
 }
 
-function getPointCost(
-  entry: FlatTalentEntry,
-  section: "class" | "spec",
-) {
+function getPointCost(entry: FlatTalentEntry, section: "class" | "spec") {
   return section === "class" ? entry.aeCost : entry.teCost;
 }
 
@@ -398,9 +395,7 @@ function canApplyPointChange(
 }
 
 function isOrderedDistribution(spent: { ability: number; talent: number }) {
-  return (
-    spent.ability === spent.talent || spent.ability === spent.talent + 1
-  );
+  return spent.ability === spent.talent || spent.ability === spent.talent + 1;
 }
 
 function getNextOrderedSection(spent: { ability: number; talent: number }) {
@@ -516,8 +511,7 @@ function limitPointStateToTreeCaps(
     }
 
     const rank = Math.min(selectable.maxPoints, Math.max(0, rawRank));
-    const remaining =
-      TREE_POINT_LIMIT - spentBySection[selectable.section];
+    const remaining = TREE_POINT_LIMIT - spentBySection[selectable.section];
     const allowedRank = Math.min(
       rank,
       Math.floor(remaining / selectable.pointCost),
@@ -525,8 +519,7 @@ function limitPointStateToTreeCaps(
 
     if (allowedRank > 0) {
       limitedPoints[key] = allowedRank;
-      spentBySection[selectable.section] +=
-        allowedRank * selectable.pointCost;
+      spentBySection[selectable.section] += allowedRank * selectable.pointCost;
     }
   }
 
@@ -560,8 +553,7 @@ function limitPointStateToTreeCaps(
 
     if (allowedRank > 0) {
       orderedPoints[key] = allowedRank;
-      spentBySection[selectable.section] +=
-        allowedRank * selectable.pointCost;
+      spentBySection[selectable.section] += allowedRank * selectable.pointCost;
     }
   }
 
@@ -970,6 +962,8 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
     data.talents.classes[0];
   const defaultSpec =
     sortedSpecs(defaultClass)[1] ?? sortedSpecs(defaultClass)[0];
+  const searchParams = useSearchParams();
+  const searchParamKey = searchParams.toString();
   const initialState = readInitialParamState(
     data,
     defaultClass,
@@ -997,8 +991,6 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
   );
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const longPressTimer = useRef<number | null>(null);
-  const hasHydratedUrlState = useRef(false);
-  const hasUserSelectedClass = useRef(false);
   const [isUrlStateReady, setIsUrlStateReady] = useState(false);
 
   const selectedClass =
@@ -1018,24 +1010,16 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
   const treeContentSize = getTreeContentSize(treeLayout);
 
   useEffect(() => {
-    if (hasHydratedUrlState.current) {
-      return;
-    }
-
     const initialState = readInitialUrlState(data, defaultClass, defaultSpec);
-
-    hasHydratedUrlState.current = true;
-    if (hasUserSelectedClass.current) {
-      setIsUrlStateReady(true);
-      return;
-    }
 
     setSelectedClassId(initialState.classId);
     setSelectedSpecId(initialState.specId);
     setPoints(initialState.points);
     setIsFreePickEnabled(initialState.freePick);
+    setOpenChoiceNodeKey(null);
+    setHoveredChoiceId(null);
     setIsUrlStateReady(true);
-  }, [data, defaultClass]);
+  }, [data, defaultClass, defaultSpec, searchParamKey]);
 
   useEffect(() => {
     function handleResize() {
@@ -1114,13 +1098,7 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
     const nextQuery = params.toString().replace(/%2C/g, ",");
     const nextUrl = `${window.location.pathname}?${nextQuery}`;
     window.history.replaceState(null, "", nextUrl);
-  }, [
-    isUrlStateReady,
-    selectedClass,
-    selectedSpec,
-    points,
-    isFreePickEnabled,
-  ]);
+  }, [isUrlStateReady, selectedClass, selectedSpec, points, isFreePickEnabled]);
 
   const classEntries = useMemo(
     () =>
@@ -1180,12 +1158,28 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
   function chooseClass(builderClass: BuilderClass) {
     const nextSpecs = sortedSpecs(builderClass);
 
-    hasUserSelectedClass.current = true;
     setSelectedClassId(builderClass.classId);
     setSelectedSpecId(nextSpecs[0]?.tabId ?? null);
     setPoints({});
     setOpenChoiceNodeKey(null);
     setIsClassPickerOpen(false);
+  }
+
+  function chooseStartClass(
+    event: MouseEvent<HTMLAnchorElement>,
+    builderClass: BuilderClass,
+    spec: BuilderTab | undefined,
+  ) {
+    event.preventDefault();
+    setSelectedClassId(builderClass.classId);
+    setSelectedSpecId(spec?.tabId ?? null);
+    setPoints({});
+    setOpenChoiceNodeKey(null);
+    setHoveredChoiceId(null);
+    setIsUrlStateReady(true);
+
+    const nextUrl = builderUrl(builderClass, spec);
+    window.history.pushState(null, "", nextUrl);
   }
 
   function chooseSpec(tab: BuilderTab) {
@@ -1402,9 +1396,7 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
             <label className="free-pick-toggle">
               <input
                 checked={isFreePickEnabled}
-                onChange={(event) =>
-                  setIsFreePickEnabled(event.target.checked)
-                }
+                onChange={(event) => setIsFreePickEnabled(event.target.checked)}
                 type="checkbox"
               />
               <span>Free pick</span>
@@ -1456,6 +1448,9 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
                     <a
                       href={builderUrl(builderClass, firstSpec)}
                       key={builderClass.classId}
+                      onClick={(event) =>
+                        chooseStartClass(event, builderClass, firstSpec)
+                      }
                       style={classThemeStyle(
                         getClassSetting(data, builderClass),
                       )}
