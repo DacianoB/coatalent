@@ -126,6 +126,44 @@ button {
   color: #d2d2d2;
 }
 
+.builder-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: min(560px, 52vw);
+}
+
+.free-pick-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 35px;
+  padding: 0 12px;
+  border: 1px solid #57575d;
+  border-radius: 5px;
+  background: #232324;
+  color: #f0f0f0;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.free-pick-toggle input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--class-color);
+  cursor: pointer;
+}
+
+.free-pick-toggle:focus-within {
+  border-color: var(--class-color);
+  box-shadow: 0 0 0 1px var(--class-color);
+}
+
 .tree-search {
   position: relative;
   display: block;
@@ -1006,6 +1044,12 @@ button {
     width: 100%;
   }
 
+  .builder-controls {
+    width: 100%;
+    min-width: 0;
+    justify-content: stretch;
+  }
+
   .class-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1018,6 +1062,15 @@ button {
 @media (max-width: 520px) {
   .class-identity h1 {
     font-size: 1.25rem;
+  }
+
+  .builder-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .free-pick-toggle {
+    justify-content: space-between;
   }
 
   .class-grid {

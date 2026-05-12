@@ -17,6 +17,7 @@ type Props = {
     class?: string;
     spec?: string;
     talents?: string;
+    freePick?: string;
   };
 };
 
@@ -49,6 +50,7 @@ type InitialUrlState = {
   classId: number | null;
   specId: number | null;
   points: Record<string, number>;
+  freePick: boolean;
 };
 
 const TREE_WIDTH = 1320;
@@ -374,22 +376,38 @@ function canApplyPointChange(
   currentPoints: Record<string, number>,
   nextPoints: Record<string, number>,
   section: "class" | "spec",
+  freePick: boolean,
 ) {
   const currentSpent = getSpentTotals(nodes, currentPoints);
   const nextSpent = getSpentTotals(nodes, nextPoints);
   const currentSectionSpent = getSpentInSection(currentSpent, section);
   const nextSectionSpent = getSpentInSection(nextSpent, section);
-
-  return (
+  const isWithinTreeLimit =
     nextSectionSpent <= TREE_POINT_LIMIT ||
-    nextSectionSpent <= currentSectionSpent
+    nextSectionSpent <= currentSectionSpent;
+
+  if (!isWithinTreeLimit) {
+    return false;
+  }
+
+  return freePick || isOrderedDistribution(nextSpent);
+}
+
+function isOrderedDistribution(spent: { ability: number; talent: number }) {
+  return (
+    spent.ability === spent.talent || spent.ability === spent.talent + 1
   );
+}
+
+function getNextOrderedSection(spent: { ability: number; talent: number }) {
+  return spent.ability === spent.talent ? "class" : "spec";
 }
 
 function canAddRankToNode(
   node: TreeNode,
   points: Record<string, number>,
   spent: { ability: number; talent: number },
+  freePick: boolean,
 ) {
   if (
     isPassiveNode(node) ||
@@ -404,15 +422,24 @@ function canAddRankToNode(
     ),
   );
 
-  return getSpentInSection(spent, node.section) + pointCost <= TREE_POINT_LIMIT;
+  const nextSpent =
+    node.section === "class"
+      ? { ...spent, ability: spent.ability + pointCost }
+      : { ...spent, talent: spent.talent + pointCost };
+
+  return (
+    getSpentInSection(spent, node.section) + pointCost <= TREE_POINT_LIMIT &&
+    (freePick || isOrderedDistribution(nextSpent))
+  );
 }
 
-function getPointLimitText(
+function getPointBlockText(
   node: TreeNode,
   points: Record<string, number>,
   spent: { ability: number; talent: number },
+  freePick: boolean,
 ) {
-  if (canAddRankToNode(node, points, spent) || isPassiveNode(node)) {
+  if (canAddRankToNode(node, points, spent, freePick) || isPassiveNode(node)) {
     return [];
   }
 
@@ -421,6 +448,17 @@ function getPointLimitText(
   }
 
   const treeName = node.section === "class" ? "Class Tree" : "Spec Tree";
+
+  if (getSpentInSection(spent, node.section) >= TREE_POINT_LIMIT) {
+    return [`${treeName} is limited to ${TREE_POINT_LIMIT} points`];
+  }
+
+  if (!freePick && getNextOrderedSection(spent) !== node.section) {
+    const nextTreeName =
+      getNextOrderedSection(spent) === "class" ? "Class Tree" : "Spec Tree";
+
+    return [`Next point must be spent in the ${nextTreeName}`];
+  }
 
   return [`${treeName} is limited to ${TREE_POINT_LIMIT} points`];
 }
@@ -442,6 +480,7 @@ function arePointStatesEqual(
 function limitPointStateToTreeCaps(
   nodes: TreeNode[],
   points: Record<string, number>,
+  freePick: boolean,
 ) {
   const selectableByKey = new Map<
     string,
@@ -462,8 +501,8 @@ function limitPointStateToTreeCaps(
     }
   }
 
-  const spentBySection = { class: 0, spec: 0 };
-  const limitedPoints: Record<string, number> = {};
+  let spentBySection = { class: 0, spec: 0 };
+  let limitedPoints: Record<string, number> = {};
 
   for (const [key, rawRank] of Object.entries(points)) {
     const selectable = selectableByKey.get(key);
@@ -486,6 +525,43 @@ function limitPointStateToTreeCaps(
         allowedRank * selectable.pointCost;
     }
   }
+
+  if (freePick) {
+    return limitedPoints;
+  }
+
+  const targetClassPoints = Math.min(
+    spentBySection.class,
+    spentBySection.spec + 1,
+  );
+  const targetSpecPoints = Math.min(spentBySection.spec, targetClassPoints);
+
+  spentBySection = { class: 0, spec: 0 };
+  const orderedPoints: Record<string, number> = {};
+
+  for (const [key, rawRank] of Object.entries(limitedPoints)) {
+    const selectable = selectableByKey.get(key);
+
+    if (!selectable) {
+      continue;
+    }
+
+    const target =
+      selectable.section === "class" ? targetClassPoints : targetSpecPoints;
+    const remaining = target - spentBySection[selectable.section];
+    const allowedRank = Math.min(
+      rawRank,
+      Math.floor(remaining / selectable.pointCost),
+    );
+
+    if (allowedRank > 0) {
+      orderedPoints[key] = allowedRank;
+      spentBySection[selectable.section] +=
+        allowedRank * selectable.pointCost;
+    }
+  }
+
+  limitedPoints = orderedPoints;
 
   return limitedPoints;
 }
@@ -744,17 +820,21 @@ function readInitialParamState(
   data: BuilderViewModel,
   fallbackClass: BuilderClass,
   fallbackSpec: BuilderTab | undefined,
-  params: { class?: string; spec?: string; talents?: string } | undefined,
+  params:
+    | { class?: string; spec?: string; talents?: string; freePick?: string }
+    | undefined,
 ): InitialUrlState {
   const classFromParams = data.talents.classes.find((builderClass) =>
     matchesQueryValue(builderClass.className, params?.class ?? null),
   );
+  const freePick = params?.freePick === "1";
 
   if (!classFromParams) {
     return {
       classId: null,
       specId: null,
       points: {},
+      freePick,
     };
   }
 
@@ -771,6 +851,7 @@ function readInitialParamState(
     classId: classFromParams.classId,
     specId: specFromParams?.tabId ?? null,
     points: decodeTalentCode(params?.talents ?? null),
+    freePick,
   };
 }
 
@@ -846,11 +927,13 @@ function readInitialUrlState(
       classId: null,
       specId: null,
       points: {},
+      freePick: false,
     };
   }
 
   const params = new URLSearchParams(window.location.search);
   const classParam = params.get("class");
+  const freePick = params.get("freePick") === "1";
   const classFromUrl = data.talents.classes.find((builderClass) =>
     matchesQueryValue(builderClass.className, classParam),
   );
@@ -860,6 +943,7 @@ function readInitialUrlState(
       classId: null,
       specId: null,
       points: {},
+      freePick,
     };
   }
 
@@ -872,6 +956,7 @@ function readInitialUrlState(
     classId: classFromUrl.classId,
     specId: specFromUrl?.tabId ?? null,
     points: decodeTalentCode(params.get("talents")),
+    freePick,
   };
 }
 
@@ -897,6 +982,9 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
   const [isClassPickerOpen, setIsClassPickerOpen] = useState(false);
   const [points, setPoints] = useState<Record<string, number>>(
     initialState.points,
+  );
+  const [isFreePickEnabled, setIsFreePickEnabled] = useState(
+    initialState.freePick,
   );
   const [hoveredNodeKey, setHoveredNodeKey] = useState<string | null>(null);
   const [hoveredChoiceId, setHoveredChoiceId] = useState<number | null>(null);
@@ -941,6 +1029,7 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
     setSelectedClassId(initialState.classId);
     setSelectedSpecId(initialState.specId);
     setPoints(initialState.points);
+    setIsFreePickEnabled(initialState.freePick);
     setIsUrlStateReady(true);
   }, [data, defaultClass]);
 
@@ -1012,10 +1101,22 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
       params.delete("talents");
     }
 
+    if (isFreePickEnabled) {
+      params.set("freePick", "1");
+    } else {
+      params.delete("freePick");
+    }
+
     const nextQuery = params.toString().replace(/%2C/g, ",");
     const nextUrl = `${window.location.pathname}?${nextQuery}`;
     window.history.replaceState(null, "", nextUrl);
-  }, [isUrlStateReady, selectedClass, selectedSpec, points]);
+  }, [
+    isUrlStateReady,
+    selectedClass,
+    selectedSpec,
+    points,
+    isFreePickEnabled,
+  ]);
 
   const classEntries = useMemo(
     () =>
@@ -1060,13 +1161,17 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
     }
 
     setPoints((current) => {
-      const limitedPoints = limitPointStateToTreeCaps(nodes, current);
+      const limitedPoints = limitPointStateToTreeCaps(
+        nodes,
+        current,
+        isFreePickEnabled,
+      );
 
       return arePointStatesEqual(current, limitedPoints)
         ? current
         : limitedPoints;
     });
-  }, [nodes]);
+  }, [nodes, isFreePickEnabled]);
 
   function chooseClass(builderClass: BuilderClass) {
     const nextSpecs = sortedSpecs(builderClass);
@@ -1116,7 +1221,13 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
       }
 
       return canUsePointState(nextPoints) &&
-        canApplyPointChange(nodes, current, nextPoints, node.section)
+        canApplyPointChange(
+          nodes,
+          current,
+          nextPoints,
+          node.section,
+          isFreePickEnabled,
+        )
         ? nextPoints
         : current;
     });
@@ -1125,13 +1236,16 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
   function canUsePointState(nextPoints: Record<string, number>) {
     const nextSpent = getSpentTotals(nodes, nextPoints);
 
-    return nodes.every((node) => {
-      if (isPassiveNode(node) || getNodeRank(node, nextPoints) === 0) {
-        return true;
-      }
+    return (
+      (isFreePickEnabled || isOrderedDistribution(nextSpent)) &&
+      nodes.every((node) => {
+        if (isPassiveNode(node) || getNodeRank(node, nextPoints) === 0) {
+          return true;
+        }
 
-      return canRankNode(node, nextPoints, nextSpent, data.realm.maxLevel);
-    });
+        return canRankNode(node, nextPoints, nextSpent, data.realm.maxLevel);
+      })
+    );
   }
 
   function removeNodePoints(node: TreeNode, current: Record<string, number>) {
@@ -1212,7 +1326,13 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
         existing > 0 && existing < choice.maxPoints ? existing + 1 : 1;
 
       return canUsePointState(nextPoints) &&
-        canApplyPointChange(nodes, current, nextPoints, node.section)
+        canApplyPointChange(
+          nodes,
+          current,
+          nextPoints,
+          node.section,
+          isFreePickEnabled,
+        )
         ? nextPoints
         : current;
     });
@@ -1274,14 +1394,27 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
             </button>
           </div>
 
-          <label className="tree-search">
-            <span>Search</span>
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search classes, specs, or talents"
-            />
-          </label>
+          <div className="builder-controls">
+            <label className="free-pick-toggle">
+              <input
+                checked={isFreePickEnabled}
+                onChange={(event) =>
+                  setIsFreePickEnabled(event.target.checked)
+                }
+                type="checkbox"
+              />
+              <span>Free pick</span>
+            </label>
+
+            <label className="tree-search">
+              <span>Search</span>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search classes, specs, or talents"
+              />
+            </label>
+          </div>
         </header>
         <nav className="spec-tabs" aria-label="Class specializations">
           {specs.map((spec) => (
@@ -1475,7 +1608,12 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
                       const canUseNode =
                         isSpent ||
                         (meetsRequirements &&
-                          canAddRankToNode(node, points, spent));
+                          canAddRankToNode(
+                            node,
+                            points,
+                            spent,
+                            isFreePickEnabled,
+                          ));
                       const isMatch = (node.choices ?? [node]).some((choice) =>
                         matchesQuery(choice, queryText),
                       );
@@ -1566,7 +1704,14 @@ export default function BuilderTalentTree({ data, initialParams }: Props) {
                         points,
                         spent,
                         data.realm.maxLevel,
-                      ).concat(getPointLimitText(hoveredNode, points, spent))}
+                      ).concat(
+                        getPointBlockText(
+                          hoveredNode,
+                          points,
+                          spent,
+                          isFreePickEnabled,
+                        ),
+                      )}
                     />
                   ) : null}
                 </div>
