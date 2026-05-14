@@ -4,8 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "node scripts/sync-static-assets.mjs && next build && node scripts/prepare-static-html.mjs",
+    "dev": "next dev --turbopack",
+    "build": "npm run build:next && npm run build:html",
+    "build:next": "node scripts/sync-static-assets.mjs && next build",
+    "build:html": "node scripts/prepare-static-html.mjs",
     "start": "next start",
     "scrape:data": "node scripts/scrape-ascension-coa-builder.mjs",
     "scrape:data:voljin": "node scripts/scrape-ascension-coa-builder.mjs https://ascension.gg/en/v2/coa-builder/voljin data/ascension-coa-voljin.json",

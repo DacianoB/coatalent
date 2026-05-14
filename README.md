@@ -22,12 +22,11 @@ The builder keeps the current class, spec, and selected talent ranks in the URL
 query string while you edit:
 
 ```text
-?class=witch-doctor&spec=brewing&talents=c4005.1,s30823.1
+?class=witch-doctor&spec=brewing&talents=:4005t1:30823t1:
 ```
 
-Talent codes use `c` for class-tree nodes and `s` for spec-tree nodes, followed
-by the node id and rank. You can share the current browser URL to reopen the
-same build state.
+Talent codes use Ascension's `:nodeIdtRank:` format in tree order. You can
+share the current browser URL to reopen the same build state.
 
 ## Refresh The JSON
 

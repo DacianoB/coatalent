@@ -12,7 +12,10 @@ const PRESERVED_HTML_ENTRIES = new Set([
 ]);
 
 function assertBuildLifecycle() {
-  if (process.env.npm_lifecycle_event !== "build") {
+  if (
+    process.env.npm_lifecycle_event !== "build" &&
+    process.env.npm_lifecycle_event !== "build:html"
+  ) {
     throw new Error(
       "Refusing to update html/. Run `npm run build` to regenerate the static HTML export.",
     );
@@ -83,6 +86,24 @@ async function makeCssPublicUrlsFileFriendly() {
   }
 }
 
+async function makeHtmlPublicUrlsFileFriendly() {
+  const files = await listFiles(HTML_DIR);
+  const htmlFiles = files.filter((file) => file.endsWith(".html"));
+
+  for (const htmlFile of htmlFiles) {
+    const html = await fs.readFile(htmlFile, "utf8");
+    const nextHtml = html
+      .replaceAll('href="/icon/', 'href="./icon/')
+      .replaceAll('\\"/icon/', '\\"./icon/')
+      .replaceAll('href="/textures/', 'href="./textures/')
+      .replaceAll('\\"/textures/', '\\"./textures/');
+
+    if (nextHtml !== html) {
+      await fs.writeFile(htmlFile, nextHtml);
+    }
+  }
+}
+
 assertBuildLifecycle();
 
 if (!(await fileExists(OUT_DIR))) {
@@ -93,5 +114,6 @@ await clearHtmlExportDirectory();
 await copyDirectory(OUT_DIR, HTML_DIR);
 await fs.writeFile(path.join(HTML_DIR, ".nojekyll"), "");
 await makeCssPublicUrlsFileFriendly();
+await makeHtmlPublicUrlsFileFriendly();
 
 console.log("Static HTML export written to html/");
